@@ -1,0 +1,16 @@
+[
+  {
+    "Name": "test1",
+    "Calls": [
+      "Create Session",
+      "ResetActivations",
+      "UpdateSessionFile"
+    ]
+  },
+  {
+    "Name": "test2",
+    "Calls": [
+      "Get Session List"
+    ]
+  }
+]

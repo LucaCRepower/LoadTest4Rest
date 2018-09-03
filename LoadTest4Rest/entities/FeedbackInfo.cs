@@ -22,8 +22,9 @@ namespace com.Repower.LoadTest4Rest.entities
     public class ExecutionInfo
     {
         public string Name { get; set; }
-        public DateTime StartTime { get; set; }
-        public DateTime EndTime { get; set; }
+        public TimeSpan ExecTime { get; set; }
+        /// <summary>Flag indicante la chiamata ha generato un errore</summary>
+        public bool Failed { get; set; } = false;
     }
 
 }

@@ -23,7 +23,29 @@ namespace com.Repower.LoadTest4Rest
         /// <returns></returns>
         public List<FeedbackInfo> Execute(string url, int visitors, JobInfo job2Execute)
         {
-            return null;
+            List<FeedbackInfo> lista = new List<FeedbackInfo>();
+
+            Random rnd = new Random();
+
+            for (int x = 0; x < visitors; ++x)
+            {
+                FeedbackInfo info = new FeedbackInfo
+                {
+                    Executions = new List<ExecutionInfo>()
+                };
+
+                foreach ( string callName in job2Execute.Calls)
+                {
+                    info.Executions.Add(new ExecutionInfo
+                    {
+                        Name = callName,
+                        ExecTime = new TimeSpan(rnd.Next(1, 999) * 1_000_000)
+                    });
+                }
+                lista.Add(info);
+            }
+
+            return lista;
         }
     }
 }

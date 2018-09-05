@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -44,23 +45,20 @@ namespace com.Repower.LoadTest4Rest
         /// <returns></returns>
         private Task<FeedbackInfo> CreateTask(string url, JobInfo job2Execute)
         {
-            return Task.Run(async () =>
+            return Task.Run(() =>
             {
                 FeedbackInfo feedback = new FeedbackInfo() { Name = job2Execute.Name };
-                HttpClient httpClient = CreateHttpClient(url);
+                WebClient httpClient = CreateHttpClient(url);
 
                 //lista parametri condivisa tra le call (serve per recuperare i parametri da una chiamata e passarli alla successiva)
                 Dictionary<string, string> parameters = new Dictionary<string, string>();
                 foreach (var call in job2Execute.Calls)
                 {
-                    ExecutionInfo result = await ExecuteCall(httpClient, call, parameters);
+                    ExecutionInfo result = ExecuteCall(httpClient, call, parameters);
                     feedback.Executions.Add(result);
                 }
                 return feedback;
-            }).ContinueWith(res =>
-            {
-                return new FeedbackInfo() { Name = job2Execute.Name };
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            });
         }
 
         /// <summary>
@@ -68,32 +66,39 @@ namespace com.Repower.LoadTest4Rest
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        private HttpClient CreateHttpClient(string url)
+        private WebClient CreateHttpClient(string url)
         {
-            HttpClient httpClient = new HttpClient();
-            httpClient.BaseAddress = new Uri(url);
-            httpClient.Timeout = TimeSpan.FromMinutes(1); //TODO: aggiungere parametro di configurazione
-
-            return httpClient;
+            WebClientEx webClient = new WebClientEx();
+            webClient.BaseAddress = url;
+            return webClient;
         }
 
         /// <summary>
         /// Effettua la chiamata e restituisce il risultato
         /// </summary>
-        /// <param name="httpClient"></param>
+        /// <param name="webClient"></param>
         /// <param name="call"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        private async Task<ExecutionInfo> ExecuteCall(HttpClient httpClient, string call, IDictionary<string, string> parameters)
+        private ExecutionInfo ExecuteCall(WebClient webClient, string call, IDictionary<string, string> parameters)
         {
-            ExecutionInfo execInfo = new ExecutionInfo();
+            ExecutionInfo execInfo = new ExecutionInfo()
+            {
+                Name = call
+            };
             DateTime startTime = DateTime.Now;
             //TODO: caricare la call dalla configurazione (callcollection.json) e sostituire eventuali parametri nella url
             string request = call;
 
-            //TODO: in base alla configurazione, effettuare una GET o una POST
-            var res = await httpClient.GetAsync(request);
-
+            try
+            {
+                //TODO: in base alla configurazione, effettuare una GET o una POST
+                var res = webClient.DownloadString(request);
+            }
+            catch (WebException wex)
+            {
+                //TODO: gestire eccezione
+            }
 
             //TODO: recuperare il risultato ed eventualmente aggiungere o modificare i parametri sul dictionary
 
@@ -101,5 +106,15 @@ namespace com.Repower.LoadTest4Rest
             return execInfo;
         }
 
+
+        public class WebClientEx : WebClient
+        {
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                WebRequest req =  base.GetWebRequest(address);
+                req.Timeout = (int)TimeSpan.FromMinutes(1).TotalMilliseconds; //TODO: aggiungere parametro di configurazione;
+                return req;
+            }
+        }
     }
 }

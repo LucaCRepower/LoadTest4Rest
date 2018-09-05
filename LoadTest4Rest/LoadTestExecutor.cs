@@ -39,7 +39,8 @@ namespace com.Repower.LoadTest4Rest
                     info.Executions.Add(new ExecutionInfo
                     {
                         Name = callName,
-                        ExecTime = new TimeSpan(rnd.Next(1, 999) * 1_000_000)
+                        ExecTime = new TimeSpan(rnd.Next(1, 999) * 1_000_000),
+                        Failed = rnd.Next(1, 999) > 990
                     });
                 }
                 lista.Add(info);

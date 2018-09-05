@@ -42,5 +42,10 @@ namespace com.Repower.LoadTest4Rest.entities
         }
 
         #endregion
+
+        public override string ToString()
+        {
+            return $"{Name} ({Calls.Count} Chiamate)";
+        }
     }
 }

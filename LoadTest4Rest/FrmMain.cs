@@ -139,9 +139,9 @@ namespace com.Repower.LoadTest4Rest
         private void WriteRow(DataGridViewRow row, List<double> grouping, List<double> values, List<bool> errors)
         {
 
-            double max = grouping.Max(),
-                       min = grouping.Min(),
-                       avg = grouping.Average(),
+            double max = grouping.DefaultIfEmpty().Max(),
+                       min = grouping.DefaultIfEmpty().Min(),
+                       avg = grouping.DefaultIfEmpty().Average(),
                        sigma = StandardDeviation(grouping);
 
             int errori = errors.Where(e => e).Count();
@@ -299,6 +299,7 @@ namespace com.Repower.LoadTest4Rest
         /// <returns></returns>
         private static double StandardDeviation(List<double> valueList)
         {
+
             double M = 0.0;
             double S = 0.0;
             int k = 1;
@@ -309,7 +310,16 @@ namespace com.Repower.LoadTest4Rest
                 S += (value - tmpM) * (value - M);
                 k++;
             }
-            return Math.Sqrt(S / (k - 1));
+
+            if (S == 0 || k == 1)
+            {
+                return 0;
+            }
+            else
+            {
+                return Math.Sqrt(S / (k - 1));
+            }
+
         }
     }
 }

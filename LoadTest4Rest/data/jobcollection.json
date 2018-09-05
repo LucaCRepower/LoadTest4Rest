@@ -1,14 +1,12 @@
 [
   {
-    "Name": "test1",
+    "Name": "Creazione Session",
     "Calls": [
-      "Create Session",
-      "ResetActivations",
-      "UpdateSessionFile"
+      "Create Session"
     ]
   },
   {
-    "Name": "test2",
+    "Name": "GetComuni",
     "Calls": [
       "GetComuni"
     ]

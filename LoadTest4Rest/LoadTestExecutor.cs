@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -47,18 +49,18 @@ namespace com.Repower.LoadTest4Rest
             return Task.Run(() =>
             {
                 FeedbackInfo feedback = new FeedbackInfo() { TaskID = taskID, Name = job2Execute.Name };
-                HttpClient httpClient = CreateHttpClient(urlServer);
+                WebClient webClient = CreateHttpClient(urlServer);
 
                 //lista parametri condivisa tra le call (serve per recuperare i parametri da una chiamata e passarli alla successiva)
                 Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
-                    { "##server##", "" },
+                    { "##server##", "/api" },
                     { "##sessionID##", taskID.ToString() }
                 };
 
                 foreach (string call in job2Execute.Calls)
                 {
-                    ExecutionInfo result = ExecuteCall(httpClient, call, parameters);
+                    ExecutionInfo result = ExecuteCall(webClient, call, parameters);
                     feedback.Executions.Add(result);
                 }
                 return feedback;
@@ -70,26 +72,21 @@ namespace com.Repower.LoadTest4Rest
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        private HttpClient CreateHttpClient(string url)
+        private WebClient CreateHttpClient(string url)
         {
-            HttpClient httpClient = new HttpClient(new HttpClientHandler
-            {
-                MaxConnectionsPerServer = 100
-            });
-            httpClient.BaseAddress = new Uri(url);
-            httpClient.Timeout = TimeSpan.FromMinutes(1); //TODO: aggiungere parametro di configurazione
-
-            return httpClient;
+            WebClientEx webClient = new WebClientEx();
+            webClient.BaseAddress = url;
+            return webClient;
         }
 
         /// <summary>
         /// Effettua la chiamata e restituisce il risultato
         /// </summary>
-        /// <param name="httpClient"></param>
+        /// <param name="webClient"></param>
         /// <param name="call"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        private ExecutionInfo ExecuteCall(HttpClient httpClient, string call, IDictionary<string, string> parameters)
+        private ExecutionInfo ExecuteCall(WebClient webClient, string call, IDictionary<string, string> parameters)
         {
             ExecutionInfo execInfo = new ExecutionInfo
             {
@@ -110,36 +107,26 @@ namespace com.Repower.LoadTest4Rest
                 ParseParameters(callInfo, out string request, out string body, parameters);
 
                 //TODO: in base alla configurazione, effettuare una GET o una POST
-                HttpResponseMessage res;
+                string res;
 
                 switch (callInfo.Method)
-                {
-                    case "DELETE":
-                        res = Task.Run(() => httpClient.DeleteAsync(request)).Result;
-                        break;
-
+                {                    
                     case "GET":
-                        res = Task.Run(() => httpClient.GetAsync(request)).Result;
+                        res = webClient.DownloadString(request);
                         break;
 
-                    case "POST":
-                        res = Task.Run(() => httpClient.PostAsync(request, null)).Result;
-                        break;
-
-                    case "PUT":
-                        res = Task.Run(() => httpClient.PutAsync(request, null)).Result;
-                        break;
 
                     default:
-                        execInfo.Failed = true;
-                        execInfo.ExecTime = TimeSpan.FromSeconds(0);
-                        return execInfo;
+                        res = webClient.UploadString(request, callInfo.Method, body);
+                        break;
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                execInfo.Failed = true;
             }
+
 
             //TODO: recuperare il risultato ed eventualmente aggiungere o modificare i parametri sul dictionary
             execInfo.ExecTime = DateTime.Now - startTime;
@@ -156,7 +143,16 @@ namespace com.Repower.LoadTest4Rest
                 request = request.Replace(kvp.Key, kvp.Value);
                 body = body.Replace(kvp.Key, kvp.Value);
             }
+        }
 
+        public class WebClientEx : WebClient
+        {
+            protected override WebRequest GetWebRequest(Uri address)
+            {
+                WebRequest req = base.GetWebRequest(address);
+                req.Timeout = (int)TimeSpan.FromMinutes(1).TotalMilliseconds; //TODO: aggiungere parametro di configurazione;
+                return req;
+            }
         }
     }
 }

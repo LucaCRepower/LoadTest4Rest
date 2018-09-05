@@ -19,16 +19,16 @@ namespace com.Repower.LoadTest4Rest
         /// <summary>
         /// Crea ed esegue i task
         /// </summary>
-        /// <param name="url"></param>
+        /// <param name="urlServer"></param>
         /// <param name="visitors"></param>
         /// <param name="job2Execute"></param>
         /// <returns></returns>
-        public List<FeedbackInfo> Execute(string url, int visitors, JobInfo job2Execute)
+        public List<FeedbackInfo> Execute(string urlServer, int visitors, JobInfo job2Execute)
         {
             List<Task<FeedbackInfo>> taskList = new List<Task<FeedbackInfo>>();
             for (int i = 0; i < visitors; i++)
             {
-                taskList.Add(CreateTask(url, job2Execute));
+                taskList.Add(CreateTask(i, urlServer, job2Execute));
             }
 
             Task.WaitAll(taskList.ToArray());
@@ -39,28 +39,30 @@ namespace com.Repower.LoadTest4Rest
         /// <summary>
         /// Crea ed esegue un singolo task
         /// </summary>
-        /// <param name="url"></param>
+        /// <param name="urlServer"></param>
         /// <param name="job2Execute"></param>
         /// <returns></returns>
-        private Task<FeedbackInfo> CreateTask(string url, JobInfo job2Execute)
+        private Task<FeedbackInfo> CreateTask(int taskID, string urlServer, JobInfo job2Execute)
         {
-            return Task.Run(async () =>
+            return Task.Run(() =>
             {
-                FeedbackInfo feedback = new FeedbackInfo() { Name = job2Execute.Name };
-                HttpClient httpClient = CreateHttpClient(url);
+                FeedbackInfo feedback = new FeedbackInfo() { TaskID = taskID, Name = job2Execute.Name };
+                HttpClient httpClient = CreateHttpClient(urlServer);
 
                 //lista parametri condivisa tra le call (serve per recuperare i parametri da una chiamata e passarli alla successiva)
-                Dictionary<string, string> parameters = new Dictionary<string, string>();
-                foreach (var call in job2Execute.Calls)
+                Dictionary<string, string> parameters = new Dictionary<string, string>
                 {
-                    ExecutionInfo result = await ExecuteCall(httpClient, call, parameters);
+                    { "##server##", "" },
+                    { "##sessionID##", taskID.ToString() }
+                };
+
+                foreach (string call in job2Execute.Calls)
+                {
+                    ExecutionInfo result = ExecuteCall(httpClient, call, parameters);
                     feedback.Executions.Add(result);
                 }
                 return feedback;
-            }).ContinueWith(res =>
-            {
-                return new FeedbackInfo() { Name = job2Execute.Name };
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            });
         }
 
         /// <summary>
@@ -70,7 +72,10 @@ namespace com.Repower.LoadTest4Rest
         /// <returns></returns>
         private HttpClient CreateHttpClient(string url)
         {
-            HttpClient httpClient = new HttpClient();
+            HttpClient httpClient = new HttpClient(new HttpClientHandler
+            {
+                MaxConnectionsPerServer = 100
+            });
             httpClient.BaseAddress = new Uri(url);
             httpClient.Timeout = TimeSpan.FromMinutes(1); //TODO: aggiungere parametro di configurazione
 
@@ -84,22 +89,74 @@ namespace com.Repower.LoadTest4Rest
         /// <param name="call"></param>
         /// <param name="parameters"></param>
         /// <returns></returns>
-        private async Task<ExecutionInfo> ExecuteCall(HttpClient httpClient, string call, IDictionary<string, string> parameters)
+        private ExecutionInfo ExecuteCall(HttpClient httpClient, string call, IDictionary<string, string> parameters)
         {
-            ExecutionInfo execInfo = new ExecutionInfo();
+            ExecutionInfo execInfo = new ExecutionInfo
+            {
+                Name = call
+            };
+
             DateTime startTime = DateTime.Now;
-            //TODO: caricare la call dalla configurazione (callcollection.json) e sostituire eventuali parametri nella url
-            string request = call;
 
-            //TODO: in base alla configurazione, effettuare una GET o una POST
-            var res = await httpClient.GetAsync(request);
+            CallInfo callInfo = CallInfo.Get(call);
+            if (callInfo == null)
+            {
+                execInfo.ExecTime = TimeSpan.FromSeconds(0);
+                execInfo.Failed = true;
+                return execInfo;
+            }
+            try
+            {
+                ParseParameters(callInfo, out string request, out string body, parameters);
 
+                //TODO: in base alla configurazione, effettuare una GET o una POST
+                HttpResponseMessage res;
+
+                switch (callInfo.Method)
+                {
+                    case "DELETE":
+                        res = Task.Run(() => httpClient.DeleteAsync(request)).Result;
+                        break;
+
+                    case "GET":
+                        res = Task.Run(() => httpClient.GetAsync(request)).Result;
+                        break;
+
+                    case "POST":
+                        res = Task.Run(() => httpClient.PostAsync(request, null)).Result;
+                        break;
+
+                    case "PUT":
+                        res = Task.Run(() => httpClient.PutAsync(request, null)).Result;
+                        break;
+
+                    default:
+                        execInfo.Failed = true;
+                        execInfo.ExecTime = TimeSpan.FromSeconds(0);
+                        return execInfo;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
 
             //TODO: recuperare il risultato ed eventualmente aggiungere o modificare i parametri sul dictionary
-
             execInfo.ExecTime = DateTime.Now - startTime;
             return execInfo;
         }
 
+        private void ParseParameters(CallInfo callInfo, out string request, out string body, IDictionary<string, string> parameters)
+        {
+            request = "" + callInfo.URL;
+            body = "" + callInfo.Body;
+
+            foreach (KeyValuePair<string, string> kvp in parameters)
+            {
+                request = request.Replace(kvp.Key, kvp.Value);
+                body = body.Replace(kvp.Key, kvp.Value);
+            }
+
+        }
     }
 }

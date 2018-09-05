@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,7 +29,9 @@ namespace com.Repower.LoadTest4Rest
 
         private void FrmMain_Load(object sender, EventArgs e)
         {
+            ServicePointManager.DefaultConnectionLimit = 1000;
             cboJobList.Items.AddRange(JobInfo.Load().ToArray());
+            CallInfo.Load();
             cboJobList.SelectedItem = null;
             txtServerUrl.Text = Properties.Settings.Default.serverName ?? "";
             nudVisitors.Value = Properties.Settings.Default.visitorNumber;
@@ -224,8 +227,6 @@ namespace com.Repower.LoadTest4Rest
                 {
                     return;
                 }
-
-                
 
                 List<double> values = new List<double>();
                 List<double> grouping = new List<double>();

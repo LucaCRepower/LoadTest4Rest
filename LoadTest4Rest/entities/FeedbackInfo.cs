@@ -16,6 +16,7 @@ namespace com.Repower.LoadTest4Rest.entities
             Executions = new List<ExecutionInfo>();
         }
         public string Name { get; set; }
+        public int TaskID { get; set; }
         public List<ExecutionInfo> Executions { get; set; }
     }
 

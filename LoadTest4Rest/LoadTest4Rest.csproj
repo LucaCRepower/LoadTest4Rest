@@ -49,6 +49,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="entities\CallInfo.cs" />
     <Compile Include="entities\FeedbackInfo.cs" />
     <Compile Include="entities\JobInfo.cs" />
     <Compile Include="FrmMain.cs">

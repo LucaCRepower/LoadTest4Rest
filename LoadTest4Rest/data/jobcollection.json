@@ -10,7 +10,7 @@
   {
     "Name": "test2",
     "Calls": [
-      "Get Session List"
+      "GetComuni"
     ]
   }
 ]

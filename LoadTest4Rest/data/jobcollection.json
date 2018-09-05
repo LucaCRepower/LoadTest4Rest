@@ -6,6 +6,13 @@
     ]
   },
   {
+    "Name": "GetConfigData",
+    "Calls": [
+      "GetWebClientConfigData"
+    ]
+  },
+
+  {
     "Name": "GetComuni",
     "Calls": [
       "GetComuni"
